@@ -1,0 +1,39 @@
+# Binaries for programs and plugins
+bin/
+server
+main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+
+# Local Environment & Secrets
+.env
+.env.*
+configs/*.local.yaml
+
+# SQLite local database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker volumes data (if mounted locally)
+data/
+minio_data/
+mysql_data/
+redis_data/
+etcd_data/
