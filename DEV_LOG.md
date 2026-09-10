@@ -12,7 +12,7 @@
 | 模块序号 | 模块名称 | 核心技术组件 | 解决的核心后端问题 | 状态 |
 | :---: | :--- | :--- | :--- | :---: |
 | **Module 00** | 工程身份确立与最小可运行骨架 | `go.mod`, Standard Go Layout, `Makefile`, `main.go` | 建立正规工程底座、验证本地编译与基础工具链畅通 | **已完成** ✅ |
-| **Module 01** | 基础设施容器编排与强类型配置引擎 | Docker Compose, Viper, 强类型配置校验 | 生产级环境参数隔离、防配置漏配崩溃 | 待开始 |
+| **Module 01** | 基础设施容器编排与强类型配置引擎 | Docker Compose, Viper/YAML, 强类型配置校验 | 生产级环境参数隔离、防配置漏配崩溃 | **已完成** ✅ |
 | **Module 02** | 通用响应契约与领域业务错误码 | Generic API Response, Domain Errors | 统一前后端交互协议、错误精准溯源 | 待开始 |
 | **Module 03** | 数据库连接池与版本化 SQL 迁移 | MySQL 8.0, SQLite 双模, golang-migrate | 连接复用防耗尽、数据库版本演化可追溯 | 待开始 |
 | **Module 04** | 洋葱中间件链路与安全防线 | Recovery, CORS 预检, W3C TraceID, 接口幂等性 | 进程崩溃兜底、跨域预检、弱网防重复提交 | 待开始 |
@@ -71,6 +71,62 @@
   >> [Bootstrap] Platform      : darwin/arm64
   >> [Bootstrap] Process PID   : 29292
   >> [Bootstrap] Status        : Engine Core Initialized Successfully.
+  ```
+
+---
+
+## 🛠️ Module 01：基础设施容器编排与强类型配置引擎
+
+### 1. 业务背景与技术痛点 (Problem & Context)
+- **痛点**：
+  - 传统开发中环境搭建碎片化，新人接手需手动安装 MySQL/Redis/ETCD/MinIO，配置账号端口容易踩坑；
+  - 很多项目将配置写死在代码中，或者使用没有类型约束的弱类型 `map[string]interface{}`，一旦漏配、错配某个字段，服务往往在运行数小时后因空指针（Nil Pointer）诡异崩溃；
+- **解法**：
+  - 编写 `docker-compose.yml` 声明标准化生产级中间件拓扑，一键 `make docker-up` 秒级拉起；
+  - 采用 Go Struct 强类型映射 YAML，并在启动第一毫秒执行严格的 `Validate()` 边界校验（Fast-Fail 机制）。
+
+### 2. 核心架构与设计选型 (Architecture & Rationale)
+- **容器拓扑**：
+  - MySQL 8.0.36（端口 3306，指定 `utf8mb4_unicode_ci` 字符集）；
+  - Redis 7.2-alpine（端口 6379，开启 AOF 持久化）；
+  - ETCD 3.5（端口 2379，单节点 Raft 状态机）；
+  - MinIO（端口 9000 API，9001 控制台，S3 协议对象存储）。
+- **配置模型设计**：
+  - 模块化拆分子配置结构体：`AppConfig`, `DatabaseConfig`, `RedisConfig`, `EtcdConfig`, `StorageConfig`, `JWTConfig`；
+  - 构造函数 `configs.Load(path string)` 统一加载，严禁使用全局变量 `global.Config`。
+
+### 3. 关键代码机制与底层避坑 (Key Implementation & Gotchas)
+- **Fast-Fail 启动前置熔断校验**：
+  在 `Validate()` 中校验 TCP 端口区间（1~65535）、数据库驱动白名单（只允许 mysql/sqlite）、DSN 必填性以及 JWT 密钥长度防暴力破解（至少 16 字节）；
+- **配置敏感信息脱敏**：
+  主程序控制台打印配置元数据时，严禁输出明文数据库密码和 JWT Secret，保护系统安全合规。
+
+### 4. 命令行验证与预期输出 (Verification & CLI)
+- **测试命令**：
+  ```bash
+  make test-race && make run
+  ```
+- **实际终端输出**：
+  ```text
+  go test -v -race ./...
+  === RUN   TestLoad_Success
+  --- PASS: TestLoad_Success (0.00s)
+  === RUN   TestValidate_InvalidCases
+  --- PASS: TestValidate_InvalidCases (0.00s)
+  PASS
+  ok  	nexus-hub/configs	1.327s
+
+  go run ./cmd/server/main.go
+  >> [Bootstrap] Version       : v1.0.0-dev
+  >> [Bootstrap] Process PID   : 35574
+  >> [Config] App Name         : nexus-hub
+  >> [Config] Environment      : development
+  >> [Config] HTTP Port        : 8088
+  >> [Config] Database Driver  : mysql (MaxOpen: 100, MaxIdle: 20)
+  >> [Config] Redis Node       : 127.0.0.1:6379 (DB: 0)
+  >> [Config] ETCD Endpoints   : [127.0.0.1:2379]
+  >> [Config] Storage Endpoint : 127.0.0.1:9000 (Bucket: nexus-assets)
+  >> [Bootstrap] Configuration Loaded & Verified Successfully.
   ```
 
 ---

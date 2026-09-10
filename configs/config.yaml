@@ -1,0 +1,39 @@
+# Nexus-Hub 企业级环境配置文件 (YAML)
+
+app:
+  name: "nexus-hub"
+  env: "development" # 可选: development / testing / production
+  port: 8088
+  version: "v1.0.0"
+
+database:
+  # 数据库驱动: mysql (生产/带环境推荐) 或 sqlite (本地免装开箱即用)
+  driver: "mysql"
+  dsn: "root:nexus_root_2026@tcp(127.0.0.1:3306)/nexus_hub?charset=utf8mb4&parseTime=True&loc=Local"
+  # 若切换为 sqlite，dsn 可写为: "nexus_hub.db"
+  max_open_conns: 100
+  max_idle_conns: 20
+  conn_max_lifetime_sec: 3600
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+  db: 0
+  pool_size: 50
+
+etcd:
+  endpoints:
+    - "127.0.0.1:2379"
+  dial_timeout_sec: 5
+
+storage:
+  endpoint: "127.0.0.1:9000"
+  access_key: "admin"
+  secret_key: "minioadmin2026"
+  bucket: "nexus-assets"
+  use_ssl: false
+
+jwt:
+  secret: "nexus-hub-ultra-secure-signing-key-2026-prod"
+  access_expire_min: 15 # 短命 Access Token: 15 分钟
+  refresh_expire_day: 7 # 长命 Refresh Token: 7 天
