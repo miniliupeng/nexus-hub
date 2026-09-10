@@ -132,3 +132,16 @@ nexus-hub/
         ├── 02_article_and_asset_spec.md
         ├── 03_business_async_tasks_spec.md
         └── 04_etcd_dynamic_config_spec.md
+
+---
+
+## 🗓️ 工业级工程演进与实施路线
+
+整个项目的研发落地严格遵循业界标准的大厂工程初始化次序：
+
+1. **【Phase 0】工程身份确立与最小骨架**：`go.mod` 模块初始化、Standard Go Layout 目录结构落地、最小 `main.go` 与 `Makefile` 编译验证；
+2. **【Phase 1】基础设施与配置引擎**：`docker-compose.yml` 本地中间件一键拉起、`configs/` 强类型配置加载与环境隔离；
+3. **【Phase 2】统一契约与持久化基建**：通用响应封装、领域错误码字典、MySQL 8.0/SQLite 连接池、`golang-migrate` 版本迁移脚本；
+4. **【Phase 3】Web 接入与洋葱中间件**：Gin 引擎初始化、Recovery、CORS、W3C Trace、接口幂等性防刷与 RBAC 权限守卫；
+5. **【Phase 4】领域业务垂直切片**：用户认证与双 Token 状态机、知识资产 CRUD 与游标深分页、Asynq 分布式异步任务队列、ETCD 配置热更；
+6. **【Phase 5】依赖装配与交付验收**：Google Wire 编译期无反射依赖装配、系统信号平滑优雅停机、`go test -race` 零并发竞争验收。
