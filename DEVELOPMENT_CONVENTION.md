@@ -91,3 +91,14 @@ func (s *ArticleService) CreateArticle(ctx context.Context, req *dto.CreateArtic
 
 1. **拒绝“记忆负担”**：开发、运维、代码生成及测试涉及的所有指令，必须在根目录的 **[COMMANDS_CHEAT_SHEET.md](./COMMANDS_CHEAT_SHEET.md)** 中建立原生语句与说明；
 2. **长命令 Makefile 化**：任何超过 30 个字符或携带复杂 flag 参数的原生指令，必须在 `Makefile` 中封装为易记的短指令（如 `make wire`, `make migrate-up`），实现“原生完整命令 + Makefile 简写”双重对照。
+
+---
+
+## 🏷️ 约定六：Git 提交信息强制使用中文 (Chinese Commit Message)
+
+所有 Git 提交信息一律采用**中文 Conventional Commits 规范**，格式清晰直观，杜绝模糊不清的描述：
+- `feat(模块名称): 新增核心功能/基础设施`
+- `fix(模块名称): 修复特定缺陷或边界问题`
+- `docs(文档名称): 完善架构规范、开发手册或设计文档`
+- `refactor(模块名称): 代码重构与结构优化`
+- `test(测试名称): 新增单元测试与并发测试`
