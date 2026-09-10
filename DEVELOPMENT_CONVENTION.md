@@ -84,3 +84,10 @@ func (s *ArticleService) CreateArticle(ctx context.Context, req *dto.CreateArtic
 
 1. **终端第一原则**：一切验证通过单元测试、集成测试或命令行脚本进行，严禁自动打开浏览器；
 2. **数据竞争检测（Data Race Free）**：所有模块提交前，必须通过 `go test -race ./...` 检查，确保 100% 零并发数据竞争。
+
+---
+
+## ⌨️ 约定五：命令行工具与运维操作必须全量沉淀在 `COMMANDS_CHEAT_SHEET.md`
+
+1. **拒绝“记忆负担”**：开发、运维、代码生成及测试涉及的所有指令，必须在根目录的 **[COMMANDS_CHEAT_SHEET.md](./COMMANDS_CHEAT_SHEET.md)** 中建立原生语句与说明；
+2. **长命令 Makefile 化**：任何超过 30 个字符或携带复杂 flag 参数的原生指令，必须在 `Makefile` 中封装为易记的短指令（如 `make wire`, `make migrate-up`），实现“原生完整命令 + Makefile 简写”双重对照。
