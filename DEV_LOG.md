@@ -11,7 +11,7 @@
 
 | 模块序号 | 模块名称 | 核心技术组件 | 解决的核心后端问题 | 状态 |
 | :---: | :--- | :--- | :--- | :---: |
-| **Module 00** | 工程身份确立与最小可运行骨架 | `go.mod`, Standard Go Layout, `Makefile`, `main.go` | 建立正规工程底座、验证本地编译与基础工具链畅通 | 待开始 |
+| **Module 00** | 工程身份确立与最小可运行骨架 | `go.mod`, Standard Go Layout, `Makefile`, `main.go` | 建立正规工程底座、验证本地编译与基础工具链畅通 | **已完成** ✅ |
 | **Module 01** | 基础设施容器编排与强类型配置引擎 | Docker Compose, Viper, 强类型配置校验 | 生产级环境参数隔离、防配置漏配崩溃 | 待开始 |
 | **Module 02** | 通用响应契约与领域业务错误码 | Generic API Response, Domain Errors | 统一前后端交互协议、错误精准溯源 | 待开始 |
 | **Module 03** | 数据库连接池与版本化 SQL 迁移 | MySQL 8.0, SQLite 双模, golang-migrate | 连接复用防耗尽、数据库版本演化可追溯 | 待开始 |
@@ -25,4 +25,52 @@
 
 ---
 
-*(后续每个模块的详细实现过程将在此持续追加记录)*
+## 🛠️ Module 00：工程身份确立与最小可运行骨架
+
+### 1. 业务背景与技术痛点 (Problem & Context)
+- **痛点**：若跳过工程初始化直接编写业务逻辑，会导致没有根包名（import 依赖错乱）、无统一构建入口（团队成员构建参数不一致）、缺乏目录分层（代码混乱揉在根目录）；
+- **解法**：依据业界公认的 `golang-standards/project-layout`，首先确立 `nexus-hub` 独立模块身份，建立 `cmd/server`、`internal/`、`pkg/`、`configs/` 物理目录，并编写工业级 `Makefile` 统领全流程工程动作。
+
+### 2. 核心架构与设计选型 (Architecture & Rationale)
+- **模块初始化**：基于当前官方支持的最新版 Go 1.27.1 执行 `go mod init nexus-hub`；
+- **目录规划**：
+  - `cmd/server/`：唯一可编译 `main` 包入口，严格保持轻薄，不塞业务逻辑；
+  - `internal/`：受 Go 编译器强制访问控制保护，避免私有业务逻辑被外部代码越权导入；
+  - `pkg/`：纯技术组件库，无业务属性，支持未来多项目跨工程复用；
+  - `Makefile`：工程指令枢纽，封装编译、测试、迁移、Docker 编排。
+
+### 3. 关键代码机制与底层避坑 (Key Implementation & Gotchas)
+- **动态链接版本注入 (-ldflags)**：
+  在 `Makefile` 编译阶段通过 `-ldflags "-X main.Version=... -X main.BuildTime=..."` 在编译期向二进制注入元数据，无需在代码里写死版本号；
+- **启动元数据标准化输出**：
+  在进程启动瞬间打印 Process PID、Go Runtime、OS/Arch 平台信息，确保在容器与 K8s 集群运维现场能第一眼确认实例健康度与身份。
+
+### 4. 命令行验证与预期输出 (Verification & CLI)
+- **测试命令**：
+  ```bash
+  make build && ./bin/server
+  ```
+- **实际终端输出**：
+  ```text
+  >> 正在编译 nexus-hub 服务...
+  go build -ldflags "-X main.Version=v1.0.0 -X main.BuildTime=2026-09-10" -o bin/server ./cmd/server
+  >> 编译完成: bin/server
+
+    _   _                     _   _       _     
+   | \ | |                   | | | |     | |    
+   |  \| | _____  ___   _ ___| |_| |_   _| |__  
+   | . ` |/ _ \ \/ / | | / __|  _  | | | | '_ \ 
+   | |\  |  __/>  <| |_| \__ \ | | | |_| | |_) |
+   |_| \_|\___/_/\_\\__,_|___/_| |_|\__,_|_.__/ 
+                                                
+   Nexus-Hub Enterprise Business Platform [Go 1.27]
+
+  >> [Bootstrap] Version       : v1.0.0
+  >> [Bootstrap] Build Time    : 2026-09-10
+  >> [Bootstrap] Go Runtime    : go1.27.1
+  >> [Bootstrap] Platform      : darwin/arm64
+  >> [Bootstrap] Process PID   : 29292
+  >> [Bootstrap] Status        : Engine Core Initialized Successfully.
+  ```
+
+---
