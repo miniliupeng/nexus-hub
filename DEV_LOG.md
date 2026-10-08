@@ -13,7 +13,7 @@
 | :---: | :--- | :--- | :--- | :---: |
 | **Module 00** | 工程身份确立与最小可运行骨架 | `go.mod`, Standard Go Layout, `Makefile`, `main.go` | 建立正规工程底座、验证本地编译与基础工具链畅通 | **已完成** ✅ |
 | **Module 01** | 基础设施容器编排与强类型配置引擎 | Docker Compose, Viper/YAML, 强类型配置校验 | 生产级环境参数隔离、防配置漏配崩溃 | **已完成** ✅ |
-| **Module 02** | 通用响应契约与领域业务错误码 | Generic API Response, Domain Errors | 统一前后端交互协议、错误精准溯源 | 待开始 |
+| **Module 02** | 通用响应契约与领域业务错误码 | Generic API Response, Domain Errors | 统一前后端交互协议、错误精准溯源 | **已完成** ✅ |
 | **Module 03** | 数据库连接池与版本化 SQL 迁移 | MySQL 8.0, SQLite 双模, golang-migrate | 连接复用防耗尽、数据库版本演化可追溯 | 待开始 |
 | **Module 04** | 洋葱中间件链路与安全防线 | Recovery, CORS 预检, W3C TraceID, 接口幂等性 | 进程崩溃兜底、跨域预检、弱网防重复提交 | 待开始 |
 | **Module 05** | 用户认证领域与双 Token 状态机 | Bcrypt 哈希, JWT 双 Token, Redis 白名单 | 密码加盐散列、登录态安全与无感刷新 | 待开始 |
@@ -127,6 +127,55 @@
   >> [Config] ETCD Endpoints   : [127.0.0.1:2379]
   >> [Config] Storage Endpoint : 127.0.0.1:9000 (Bucket: nexus-assets)
   >> [Bootstrap] Configuration Loaded & Verified Successfully.
+  ```
+
+---
+
+## 🛠️ Module 02：通用响应契约与领域业务错误码
+
+### 1. 业务背景与技术痛点 (Problem & Context)
+- **痛点**：
+  - 传统项目返回格式混乱（有的直接返回对象，有的包一层弱类型 `map[string]interface{}`），前端难以编写统一的 TypeScript 类型定义；
+  - 滥用“全局 HTTP 200”反模式，把真正的错误码塞在 JSON 里，导致 Nginx/网关监控无法捕获系统错误率，前端 Axios 无法原生拦截 401/403 触发静默刷新；
+  - Go 切片为 `nil` 时直接序列化为 `null`，导致前端执行 `list.map()` 频发运行时崩溃白屏。
+- **解法**：
+  - 引入泛型 `Response[T]`、传统分页 `PageResult[T]` 与游标深分页 `CursorResult[T]`；
+  - 强制防 `null` 空切片保护（空列表自动转换为 `[]`）；
+  - 建立强类型领域业务错误码字典，并提供 `HTTPStatus()` 自动将业务码映射为语义化 HTTP 状态码。
+
+### 2. 核心架构与设计选型 (Architecture & Rationale)
+- **纯 Go 契约与框架解耦**：
+  - `response.go` 与 `code.go` 为纯标准库代码，零第三方框架依赖，可用于 RPC、Worker 或命令行工具；
+  - `gin.go` 专注对接 `*gin.Context`，负责 HTTP 状态码设置与 JSON 响应写入，符合单一职责原则（SRP）。
+- **领域状态码分段规约**：
+  - `200`：成功
+  - `10001 ~ 10999`：用户与鉴权域 (401 / 403 / 404)
+  - `20001 ~ 20999`：知识资产与内容域 (404 / 409 / 422)
+  - `30001 ~ 30999`：通用基础设施与网络域 (409 / 422 / 503 / 500)
+
+### 3. 关键代码机制与底层避坑 (Key Implementation & Gotchas)
+- **空切片防御（Nil Slice Guard）**：
+  在 `NewPageResult` 与 `NewCursorResult` 构造函数中，若入参列表为 `nil`，强制重置为 `make([]T, 0)`，保证 JSON 输出永远为 `{"list": []}`；
+- **消除同包命名冲突**：
+  将纯构造函数命名为 `Success` / `Error`，Gin 上下文输出助手命名为 `Ok` / `Fail` / `Page` / `Cursor`，职责界限分明，避免 Go 编译器重名报错。
+
+### 4. 命令行验证与预期输出 (Verification & CLI)
+- **测试命令**：
+  ```bash
+  go test -v -race ./pkg/response/... && make test-race
+  ```
+- **实际终端输出**：
+  ```text
+  === RUN   TestCode_MsgAndHTTPStatus
+  --- PASS: TestCode_MsgAndHTTPStatus (0.00s)
+  === RUN   TestPageResult_NilSliceGuard
+  --- PASS: TestPageResult_NilSliceGuard (0.00s)
+  === RUN   TestCursorResult_NilSliceGuard
+  --- PASS: TestCursorResult_NilSliceGuard (0.00s)
+  === RUN   TestGinHelpers
+  --- PASS: TestGinHelpers (0.00s)
+  PASS
+  ok  	nexus-hub/pkg/response	1.485s
   ```
 
 ---
