@@ -20,6 +20,7 @@
 
 为保障企业级中台研发的高可用性、可维护性与代码严肃性，本项目在根目录设立了严苛的工程规范与演进纪要：
 
+- 🗺️ **[MULTI_PROJECT_BLUEPRINT.md](./MULTI_PROJECT_BLUEPRINT.md)**：**《全栈 AI 智能体生态系统架构蓝图与模块演进规划》**，确立与 `nexus-agent` (Node/TS) 及 `nexus-web` (Next.js) 的多语言分布式解耦与求职全景规划；
 - 📘 **[DEVELOPMENT_CONVENTION.md](./DEVELOPMENT_CONVENTION.md)**：**《企业级工程开发与架构约定规范》**，明确了底层设计决策注释（Why & Rationale）、无全局变量设计准则与单向依赖分层架构；
 - 📝 **[DEV_LOG.md](./DEV_LOG.md)**：**《核心模块演进与技术架构实操手册》**，系统化沉淀 10 大核心模块的技术痛点、选型权衡 (Trade-offs)、底层避坑指南与纯命令行自动化验证；
 - 🕹️ **[playbook/](./playbook/)**：**《全流程实操剧本与命令手册》**，按模块拆分记录每一步敲下的原生命令、真实避坑排查与终端输出；
