@@ -1,4 +1,4 @@
-.PHONY: help build run tidy test test-race clean docker-up docker-down docker-status wire
+.PHONY: help build run tidy test test-race clean docker-up docker-down docker-status wire migrate-up migrate-down
 
 # 默认展示帮助指南
 help:
@@ -14,6 +14,8 @@ help:
 	@echo "  make docker-up     - 一键在后台启动全套基础设施 (MySQL, Redis, ETCD, MinIO)"
 	@echo "  make docker-status - 查看本地容器健康检查与端口映射状态"
 	@echo "  make docker-down   - 一键安全停止并卸载所有基础设施容器"
+	@echo "  make migrate-up    - 执行全量版本化 SQL 增量迁移 (MySQL 8.0)"
+	@echo "  make migrate-down  - 安全回滚上一个数据库迁移版本"
 	@echo "  make wire          - 触发 Google Wire 编译期自动依赖静态组装"
 	@echo "=========================================================================="
 
@@ -55,6 +57,14 @@ docker-down:
 docker-status:
 	docker compose ps
 
+# 数据库版本化迁移 (golang-migrate)
+migrate-up:
+	migrate -path migrations -database "mysql://root:nexus_root_2026@tcp(127.0.0.1:3306)/nexus_hub" up
+
+migrate-down:
+	migrate -path migrations -database "mysql://root:nexus_root_2026@tcp(127.0.0.1:3306)/nexus_hub" down 1
+
 # Google Wire 代码自动装配生成
 wire:
 	wire ./cmd/server
+

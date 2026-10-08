@@ -14,7 +14,7 @@
 | **Module 00** | 工程身份确立与最小可运行骨架 | `go.mod`, Standard Go Layout, `Makefile`, `main.go` | 建立正规工程底座、验证本地编译与基础工具链畅通 | **已完成** ✅ |
 | **Module 01** | 基础设施容器编排与强类型配置引擎 | Docker Compose, Viper/YAML, 强类型配置校验 | 生产级环境参数隔离、防配置漏配崩溃 | **已完成** ✅ |
 | **Module 02** | 通用响应契约与领域业务错误码 | Generic API Response, Domain Errors | 统一前后端交互协议、错误精准溯源 | **已完成** ✅ |
-| **Module 03** | 数据库连接池与版本化 SQL 迁移 | MySQL 8.0, SQLite 双模, golang-migrate | 连接复用防耗尽、数据库版本演化可追溯 | 待开始 |
+| **Module 03** | 数据库连接池与版本化 SQL 迁移 | MySQL 8.0 独占, golang-migrate, GORM | 连接复用防耗尽、数据库版本演化可追溯 | **已完成** ✅ |
 | **Module 04** | 洋葱中间件链路与安全防线 | Recovery, CORS 预检, W3C TraceID, 接口幂等性 | 进程崩溃兜底、跨域预检、弱网防重复提交 | 待开始 |
 | **Module 05** | 用户认证领域与双 Token 状态机 | Bcrypt 哈希, JWT 双 Token, Redis 白名单 | 密码加盐散列、登录态安全与无感刷新 | 待开始 |
 | **Module 06** | 对象存储服务与预签名直传凭证 | MinIO / S3 SDK, Pre-signed URL 直传 | 避免大文件穿透后端、节约 90% 网卡带宽 | 待开始 |
@@ -176,6 +176,54 @@
   --- PASS: TestGinHelpers (0.00s)
   PASS
   ok  	nexus-hub/pkg/response	1.485s
+  ```
+
+---
+
+## 🛠️ Module 03：数据库连接池与版本化 SQL 迁移
+
+### 1. 业务背景与技术痛点 (Problem & Context)
+- **痛点**：
+  - 传统入门项目盲目使用 `global.DB`，缺乏生命周期控制与依赖可见性；
+  - 数据库连接池未做深度配置，在高并发突发流量下导致 TCP 连接频繁创建销毁，极易耗尽客户端端口甚至撑爆 MySQL `max_connections`；
+  - 滥用 GORM `AutoMigrate` 导致生产表结构不可控漂移、无法自动删除冗余旧列且易发生 DDL 锁表事故。
+- **解法**：
+  - 确立**方案 A（聚焦纯正 MySQL 8.0 生产基准）**，彻底卸下 SQLite 方言包袱；
+  - 显式构造函数注入并集中调优 `MaxOpenConns`、`MaxIdleConns` 与 `ConnMaxLifetimeSec`；
+  - 采用业界高标 `golang-migrate` 实施成对版本化增量迁移与安全回滚；
+  - 引入 `go-sqlmock` 达成脱离外部容器的极速微秒级单元测试。
+
+### 2. 核心架构与设计选型 (Architecture & Rationale)
+- **纯正 MySQL 8.0 InnoDB DDL**：
+  - 生产主库标准表结构全面启用 `ENGINE=InnoDB` 与 `COLLATE=utf8mb4_unicode_ci`；
+  - 时间字段采用高精度 `DATETIME(3)` 毫秒精度，彻底消除秒级截断并发乱序；
+  - 深度设计 `idx_articles_status_id` (`status`, `id`) 联合索引，为后续游标深分页（Keyset Pagination）提供 O(1) 聚簇扫描底座。
+- **连接池三道防线**：
+  - 最大连接数控制（100）：防止流量洪峰撑爆 MySQL 服务器；
+  - 活跃空闲连接（20）：维持热连接，规避 TCP 三次握手与握手鉴权开销；
+  - 连接寿命淘汰（3600s）：强制周期性回收，避免防火墙静默断连导致 `broken pipe`。
+
+### 3. 关键代码机制与底层避坑 (Key Implementation & Gotchas)
+- **GORM 启动探活与 sqlmock 期望对齐**：
+  GORM 在通过 Dialector 初始化底层句柄时，会在内部主动执行一次 `Ping()` 探活，因此在 mock 预期中需在 `NewWithDialector` 之前显式注册 `mock.ExpectPing()`；
+- **敏感字段脱敏**：
+  在 `internal/model/user.go` 中对 `PasswordHash` 字段标注 `json:"-"`，防止实体对象序列化时误将 Bcrypt 密码散列泄漏给前端。
+
+### 4. 命令行验证与预期输出 (Verification & CLI)
+- **测试命令**：
+  ```bash
+  go test -v -race ./pkg/database/... && make test-race
+  ```
+- **实际终端输出**：
+  ```text
+  === RUN   TestNew_UnsupportedDriver
+  --- PASS: TestNew_UnsupportedDriver (0.00s)
+  === RUN   TestDatabaseLifecycle_WithMock
+  --- PASS: TestDatabaseLifecycle_WithMock (0.00s)
+  === RUN   TestDatabase_NilGuards
+  --- PASS: TestDatabase_NilGuards (0.00s)
+  PASS
+  ok  	nexus-hub/pkg/database	1.294s
   ```
 
 ---
